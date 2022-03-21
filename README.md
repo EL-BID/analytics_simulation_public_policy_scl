@@ -10,15 +10,21 @@ Este código realiza **
 
 ## Tareas: 
 
-1. Concat Armonizada
-- Roberto - Crear un concat latest con el último año de cada país (revisar consistencia)
-- Roberto - Comparar población obtenida e identificar países con posibles problemas de armonización.
-    - Lina - volver a correr armonización ajustando el factor de expansión (arg 2020)
+Dos planes - **simulación oficial y simulación internacional**
 
-2. Líneas:
-- Laura y Lina - generar catálogo con variables de segmento y líneas oficiales
-    - Guardar nombre de la variable de segmentación (1 o más)
+## A General:
+- A1. Concat Armonizada
+    - Roberto - Crear un concat latest con el último año de cada país (revisar consistencia)
+    - Roberto - Comparar población obtenida e identificar países con posibles problemas de armonización.
+        - Lina - volver a correr armonización ajustando el factor de expansión (arg 2020)
+- A2. Comparación
+    - Crear un excel de referencia por país año los datos oficiales de pobreza para comparar. 
+        
+### B Simulación oficial
 
+- B1. Líneas oficiales:
+    - Laura y Lina - generar catálogo con variables de segmento y líneas oficiales
+        - Guardar nombre de la variable de segmentación (1 o más)
 ```
 
             isoalpha3| year | key    | value  | lp_ci | lpe_ci
@@ -26,21 +32,24 @@ Este código realiza **
             BOL      | 2010 | ciudad | 1      |   *   | ****
 ```
 
+- B2. Ingreso Oficial:
+    - Lina: Identificar países que tengan ingreso oficiales ya en la encuesta
+    - Lina y Lau: Para los que no reconstruir una variable adicional de - ingreso oficial (no sobreescribir ingreso BID)
 
-3. Ingreso:
-- Lina: Identificar países que tengan ingreso oficiales ya en la encuesta
-- Lina y Lau: Para los que no reconstruir una variable adicional de - ingreso oficial (no sobreescribir ingreso BID)
+- B3. Pobreza Oficial:
+    - Identificar paises para los que ya venga la variable de pobreza
+    - Generar pobreza con líneas oficiales (2) e ingreso oficial (3)
 
-4. Pobreza:
-- Identificar paises para los que ya venga la variable de pobreza
-- Generar pobreza con líneas oficiales (2) e ingreso oficial (3)
 
-5. Comparación
-- Crear un excel de referencia por país año los datos oficiales de pobreza para comparar. 
-        
-6. Simulación
-    - Roberto - script para asociar concat anual con líneas oficiales 
-    - Roberto - calcular pobreza
+### C Simulación Internacional
+
+- C1. Pobreza Internacional:
+    - Tener los pesos de construcción por líneas del ipc por país.
+
+### D Simulación
+- D1 Roberto - script para asociar concat anual con líneas oficiales 
+- D2 Lau - Implementar función de simulación para pobreza internacional
+- D3 Lau - Implementar función de simulación para pobreza nacional
             
 ## Tabla de contenidos: 
 --- 
