@@ -12,7 +12,7 @@ Este código realiza **
 
 1. Concat Armonizada
 - Roberto - Crear un concat latest con el último año de cada país (revisar consistencia)
-- Roberto - Comparar población obtenida y posibles problemas de armonización.
+- Roberto - Comparar población obtenida e identificar países con posibles problemas de armonización.
     - Lina - volver a correr armonización ajustando el factor de expansión (arg 2020)
 
 2. Líneas:
@@ -28,22 +28,19 @@ Este código realiza **
 
 
 3. Ingreso:
-- Identificar países que tengan ingreso oficiales ya en la encuesta
-- Para los que no reconstruir una variable adicional de - ingreso oficial (no sobreescribir ingreso BID)
+- Lina: Identificar países que tengan ingreso oficiales ya en la encuesta
+- Lina y Lau: Para los que no reconstruir una variable adicional de - ingreso oficial (no sobreescribir ingreso BID)
 
 4. Pobreza:
 - Identificar paises para los que ya venga la variable de pobreza
 - Generar pobreza con líneas oficiales (2) e ingreso oficial (3)
 
 5. Comparación
-- Tener como referencia por país año los datos oficiales de pobreza para comparar. 
+- Crear un excel de referencia por país año los datos oficiales de pobreza para comparar. 
         
 6. Simulación
-    - Roberto - script para asociar concat con líneas oficiales
+    - Roberto - script para asociar concat anual con líneas oficiales 
     - Roberto - calcular pobreza
-        - Lina y Roberto - llorar porque no se parecen
-        - Por país ver qué hacer - 
-            - Deflactar MEX
             
 ## Tabla de contenidos: 
 --- 
