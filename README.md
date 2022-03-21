@@ -19,11 +19,13 @@ Este código realiza **
 - Laura y Lina - generar catálogo con variables de segmento y líneas oficiales
     - Guardar nombre de la variable de segmentación (1 o más)
 
-'''
+```
+
             isoalpha3| year | key    | value  | lp_ci | lpe_ci
             COL      | 2010 | zona_c | 0      |   *   | ****
             BOL      | 2010 | ciudad | 1      |   *   | ****
-'''
+```
+
 
 3. Ingreso:
 - Identificar países que tengan ingreso oficiales ya en la encuesta
