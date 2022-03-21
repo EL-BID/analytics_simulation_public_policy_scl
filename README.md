@@ -7,6 +7,42 @@
 
 Este código realiza **
 
+
+## Tareas: 
+
+1. Concat Armonizada
+- Roberto - Crear un concat latest con el último año de cada país (revisar consistencia)
+- Roberto - Comparar población obtenida y posibles problemas de armonización.
+    - Lina - volver a correr armonización ajustando el factor de expansión (arg 2020)
+
+2. Líneas:
+- Laura y Lina - generar catálogo con variables de segmento y líneas oficiales
+    - Guardar nombre de la variable de segmentación (1 o más)
+
+'''
+            isoalpha3| year | key    | value  | lp_ci | lpe_ci
+            COL      | 2010 | zona_c | 0      |   *   | ****
+            BOL      | 2010 | ciudad | 1      |   *   | ****
+'''
+
+3. Ingreso:
+- Identificar países que tengan ingreso oficiales ya en la encuesta
+- Para los que no reconstruir una variable adicional de - ingreso oficial (no sobreescribir ingreso BID)
+
+4. Pobreza:
+- Identificar paises para los que ya venga la variable de pobreza
+- Generar pobreza con líneas oficiales (2) e ingreso oficial (3)
+
+5. Comparación
+- Tener como referencia por país año los datos oficiales de pobreza para comparar. 
+        
+6. Simulación
+    - Roberto - script para asociar concat con líneas oficiales
+    - Roberto - calcular pobreza
+        - Lina y Roberto - llorar porque no se parecen
+        - Por país ver qué hacer - 
+            - Deflactar MEX
+            
 ## Tabla de contenidos: 
 --- 
 - [Descripción y contexto](#descripción-y-contexto)
