@@ -39,7 +39,7 @@ Dos planes - **simulación oficial y simulación internacional**
 - B3. Pobreza Oficial:
     - Identificar paises para los que ya venga la variable de pobreza
     - Generar pobreza con líneas oficiales (2) e ingreso oficial (3)
-
+    - script para asociar concat anual con líneas oficiales 
 
 ### C Simulación Internacional
 
@@ -47,9 +47,8 @@ Dos planes - **simulación oficial y simulación internacional**
     - Tener los pesos de construcción por líneas del ipc por país.
 
 ### D Simulación
-- D1 Roberto - script para asociar concat anual con líneas oficiales 
-- D2 Lau - Implementar función de simulación para pobreza internacional
-- D3 Lau - Implementar función de simulación para pobreza nacional
+- D1 Implementar función de simulación para pobreza internacional
+- D2 Implementar función de simulación para pobreza nacional
             
 ## Tabla de contenidos: 
 --- 
