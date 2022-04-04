@@ -172,7 +172,7 @@ class SCLdataSimulation():
         
         return tasas
     
-    def simulate_changes(shock_component, shock_weights): 
+    def simulate_changes(self, shock_component, shock_weights): 
         """
         """
         
@@ -270,10 +270,10 @@ class SCLdataSimulation():
         
         return out
     
-    def plot_group(change, group):
+    def plot_group(self,change, group):
         """
         """
-        group_delta = scldata_simulation.population_segmentation_results(tasas=change, categories= group)
+        group_delta = self.population_segmentation_results(tasas=change, categories= group)
         fig=plt.figure(figsize=(30,8), dpi= 100, facecolor='w', edgecolor='k')
 
         variables = ['poor_national', 'poor_e_national']
