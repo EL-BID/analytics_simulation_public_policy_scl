@@ -148,7 +148,9 @@ class SCLdataSimulation():
         tasas['lpe_ci_delta'] = tasas['lpe_ci'] * (1 - tasas['weight']) + tasas['lpe_ci'] * tasas['weight'] * (1 + shock_weight)  
         # Impacts - only to food basket
         tasas['lp_ci_delta'] = tasas['lp_ci_no_alim'] + tasas['lpe_ci'] * (1 - tasas['weight']) + tasas['lpe_ci'] * tasas['weight'] * (1 + shock_weight) 
-
+        
+        # The difference is the same in the two thresholds
+        tasas['lp_ci_diff'] = tasas['lp_ci_delta'] - tasas['lp_ci']
         
         ####################
         # Shock Targeting
@@ -204,8 +206,13 @@ class SCLdataSimulation():
                                                      (~tasas['pc_ytot_ch_ofi_delta'].isna()), 0,None)),           
                              poor_e_national_delta = np.where((tasas['pc_ytot_ch_ofi_delta'] < tasas['lpe_ci_delta']),1,
                                             np.where((tasas['pc_ytot_ch_ofi_delta']>=tasas['lpe_ci_delta']) & 
-                                                     ~(tasas['pc_ytot_ch_ofi_delta'].isna()), 0,None))
-                             ))
+                                                     ~(tasas['pc_ytot_ch_ofi_delta'].isna()), 0,None))))
+        tasas = (tasas
+                 # poor as a result of the change
+                 .assign(poor_national_new = np.where((tasas['poor_national']==0) & (tasas['poor_national_delta']==1),1,
+                                            np.where((~tasas['poor_national'].isna()), 0,None)),
+                         poor_e_national_new = np.where((tasas['poor_e_national']==0) & (tasas['poor_e_national_delta']==1),1,
+                                            np.where((~tasas['poor_e_national'].isna()), 0,None))))
         
         return tasas
     
@@ -230,7 +237,7 @@ class SCLdataSimulation():
     def country_results(self, tasas):
         """
         """
-        
+       
         out = (tasas.assign(population_int = np.where(~(tasas['poor_int'].isna()),tasas.factor_ch, None),
                             population_nat = np.where(~(tasas['poor_national'].isna()),tasas.factor_ch, None),
                             poor_int_pop = (tasas["factor_ch"] * tasas['poor_int']),
@@ -240,7 +247,10 @@ class SCLdataSimulation():
                             poor_national_pop = (tasas["factor_ch"] * tasas['poor_national']),
                             poor_national_delta_pop = (tasas["factor_ch"] * tasas['poor_national_delta']),
                             poor_e_national_pop =  (tasas["factor_ch"] * tasas['poor_e_national']),
-                            poor_e_national_delta_pop =  (tasas["factor_ch"] * tasas['poor_e_national_delta']))
+                            poor_e_national_delta_pop =  (tasas["factor_ch"] * tasas['poor_e_national_delta']),
+                            # resources needed to mitigate the effect ( factor[I = 0,1] * diff )
+                            poor_national_new_recovery = (tasas['poor_national_new'] * tasas['factor_ch'] * tasas['lp_ci_diff']/tasas['tc_c'] ),
+                            poor_e_national_new_recovery = (tasas['poor_e_national_new'] * tasas['factor_ch'] * tasas['lp_ci_diff']/tasas['tc_c']))
                .groupby(['anio_c', 'pais_c'])
                .agg({'factor_ch':sum,
                      'population_int':sum,
@@ -252,7 +262,9 @@ class SCLdataSimulation():
                      'poor_national_pop':sum,
                      'poor_national_delta_pop':sum,
                      'poor_e_national_pop':sum,
-                     'poor_e_national_delta_pop':sum
+                     'poor_e_national_delta_pop':sum,
+                     'poor_national_new_recovery':sum,
+                     'poor_e_national_new_recovery':sum,                     
                     })).reset_index().rename(columns={'factor_ch':'population'})
 
         out = (out.assign(poor_int = (out["poor_int_pop"] / out['population_int']),
