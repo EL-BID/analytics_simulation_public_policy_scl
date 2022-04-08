@@ -48,6 +48,12 @@ Given that the objective is to analyze the impact of price variation on national
 
 When official per capita income is not available, the estimated income for this exercise includes labor and non-labor income. Labor income includes monetary and non-monetary wages. Non-labor income is defined by pensions, remittances, cash transfers and other income.   
 
+#### Identification of food-producers
+
+As part of the simulation exercise, we assume that the effects of the market imbalance caused by the invasion have had a heterogeneous impact on the economic sectors. Therefore, as a first approximation, we consider the food-production sector.
+
+In this subsection our goal is to identify within the household and employment surveys those individuals who produce food or who otherwise perform tasks closely linked to the agricultural sector (whether they have agriculture as their main or secondary activity). To achieve this, we first identified all workers who are business owners or self-employed. Then, from this group, only those in the agricultural sector are identified. As a final result, we have a column that gives values equal to 1 to employers and self-employed who belong to the agricultural sector and 0 to the rest.
+
 ### Poverty lines 
 
 In order to replicate the official poverty of each country, it is also necessary to use the official poverty thresholds. To define them, most countries use the concept of the basic food and non-food basket. On the one hand, the basic food basket establishes the minimum economic threshold to satisfy food needs based on the consumption habits of households in each country; if a family is below this threshold, it is defined as extreme poverty. On the other hand, the non-food basic basket adds non-food components to the basic basket; this threshold is used to identify the population living in poverty. 

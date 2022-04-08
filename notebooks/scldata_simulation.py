@@ -232,6 +232,23 @@ class SCLdataSimulation():
         simulations_concat = pd.concat(simulations)
 
         return simulations_concat 
+    
+    def simulate_changes_region(self, shock_component, shock_weights, shock_population, gdp_growth_population, year='2022'): 
+        """
+        """
+        simulations = []
+        for shock_weight in shock_weights:
+            change = self.simulate_shock(shock_component=shock_component,
+                                         shock_weight=shock_weight,
+                                         shock_population=shock_population,
+                                         gdp_growth_population=gdp_growth_population,
+                                         year=year)
+            country_group = self.region_results(change)
+            country_group['shock_weight'] = shock_weight
+            simulations.append(country_group)
+        simulations_concat = pd.concat(simulations)
+
+        return simulations_concat     
 
     def region_results(self, tasas):
         """
