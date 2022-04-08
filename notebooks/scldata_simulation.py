@@ -233,7 +233,50 @@ class SCLdataSimulation():
 
         return simulations_concat 
 
+    def region_results(self, tasas):
+        """
+        """
+        tasas['pais_c'] = 'LAC'
+        out = (tasas.assign(population_int = np.where(~(tasas['poor_int'].isna()),tasas.factor_ch, None),
+                                    population_nat = np.where(~(tasas['poor_national'].isna()),tasas.factor_ch, None),
+                                    poor_int_pop = (tasas["factor_ch"] * tasas['poor_int']),
+                                    poor_int_delta_pop = (tasas["factor_ch"] * tasas['poor_int_delta']),
+                                    poor31_int_pop = (tasas["factor_ch"] * tasas['poor31_int']),
+                                    poor31_int_delta_pop = (tasas["factor_ch"] * tasas['poor31_int_delta']),
+                                    poor_national_pop = (tasas["factor_ch"] * tasas['poor_national']),
+                                    poor_national_delta_pop = (tasas["factor_ch"] * tasas['poor_national_delta']),
+                                    poor_e_national_pop =  (tasas["factor_ch"] * tasas['poor_e_national']),
+                                    poor_e_national_delta_pop =  (tasas["factor_ch"] * tasas['poor_e_national_delta']),
+                                    # resources needed to mitigate the effect ( factor[I = 0,1] * diff )
+                                    poor_national_new_recovery = (tasas['poor_national_new'] * tasas['factor_ch'] * tasas['lp_ci_diff']/tasas['tc_c'] ),
+                                    poor_e_national_new_recovery = (tasas['poor_e_national_new'] * tasas['factor_ch'] * tasas['lp_ci_diff']/tasas['tc_c']))
+                 .groupby(['pais_c'])
+                       .agg({'factor_ch':sum,
+                             'population_int':sum,
+                             'population_nat':sum,
+                             'poor_int_pop':sum,
+                             'poor_int_delta_pop':sum,
+                             'poor31_int_pop':sum,
+                             'poor31_int_delta_pop':sum,
+                             'poor_national_pop':sum,
+                             'poor_national_delta_pop':sum,
+                             'poor_e_national_pop':sum,
+                             'poor_e_national_delta_pop':sum,
+                             'poor_national_new_recovery':sum,
+                             'poor_e_national_new_recovery':sum,                     
+                            })).reset_index().rename(columns={'factor_ch':'population'})
+        out = (out.assign(poor_int = (out["poor_int_pop"] / out['population_int']),
+                          poor_int_delta = (out["poor_int_delta_pop"] / out['population_int']),
+                          poor31_int = (out["poor31_int_pop"] / out['population_int']),
+                          poor31_int_delta = (out["poor31_int_delta_pop"] / out['population_int']),
+                          poor_national = (out["poor_national_pop"] / out['population_nat']),
+                          poor_national_delta = (out["poor_national_delta_pop"] / out['population_nat']),                  
+                          poor_e_national = (out["poor_e_national_pop"] / out['population_nat']),
+                          poor_e_national_delta = (out["poor_e_national_delta_pop"] / out['population_nat'])
+                         ).drop(['population_int', 'population_nat'], axis=1))
         
+        return out
+    
     def country_results(self, tasas):
         """
         """
