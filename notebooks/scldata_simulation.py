@@ -6,7 +6,7 @@
 
 import matplotlib.pyplot as plt
 import seaborn as sns
-sns.set_theme()
+#sns.set_theme()
 
 import numpy as np
 import pandas as pd
@@ -38,7 +38,8 @@ class SCLdataSimulation():
         self.harmonized = self.get_harmonized()
     
     def get_gdp_growth(self, year):
-        gdp_change = pd.read_csv(scldatalake + '/International Organizations/IMF Data/World Economic Outlook Database/Real GDP_change_IMF.csv').rename(columns={'ISO':'pais_c', year: 'gdp_change'})
+        gdp_change = (pd.read_csv(scldatalake + '/International Organizations/IMF World Economic Outlook Database/clean/Real GDP_change_IMF.csv')
+                      .rename(columns={'ISO':'pais_c', year: 'gdp_change'}))
         gdp_change = gdp_change[['pais_c', 'gdp_change']]
         gdp_change['gdp_change'] = gdp_change['gdp_change']/100
         
@@ -46,14 +47,13 @@ class SCLdataSimulation():
         
     def get_poverty_lines(self, shock_component):
         """
-        """
-        
+        """       
         povertyline = "Data Projects/International Poverty Lines/international_poverty_lines.csv"
         pl          = pd.read_csv(f'{self.scldatalake}/{povertyline}')
 
         # Reshape long to wide 
         index = ['year','isoalpha3']
-        pl = pl.pivot(index = index, columns = 'indicator', values = 'value')
+        pl = pl.pivot_table(index = index, columns = 'indicator', values = 'value').reset_index()
         pl = pl.reset_index()
         pl = pl.drop(columns = ['ppp_wdi2011','tc_wdi'])
         pl = pl.rename(columns = {'isoalpha3':'code'})
@@ -65,13 +65,12 @@ class SCLdataSimulation():
         pl.rename(columns = {'code':'pais_c', 'year':'anio_c'}, inplace = True)
 
         # Get weights
-        
         weights = pd.read_excel(f'{scldatalake}/Data Projects/Official National Poverty Lines/cba-weights.xlsx',
                                 engine='openpyxl')
-        weights = (weights.groupby(['pais_c', 'category'])['year'].max(['year'])
+        weights = (weights.groupby(['pais_c', 'category'])['year'].max()
                    .reset_index().merge(weights, on=['pais_c', 'category', 'year'], how='left'))
         weights = (weights[weights.category.isin(shock_component)]
-        .groupby(['pais_c']).agg({'weight': 'sum'}).reset_index())
+                   .groupby(['pais_c']).agg({'weight': 'sum'}).reset_index())
         weights['weight'] = weights['weight']/100 
         pl = pl.merge(weights, on='pais_c')
         pl['weight'].fillna(int(pl['weight'].mean()), inplace=True)
