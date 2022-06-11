@@ -1,3 +1,6 @@
 .env
 .env.swp
 .ipynb_checkpoints/
+source/__pycache__/
+notebooks/legacy/
+data/

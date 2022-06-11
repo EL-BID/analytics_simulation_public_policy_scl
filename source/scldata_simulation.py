@@ -38,10 +38,12 @@ class SCLdataSimulation():
         self.harmonized = self.get_harmonized()
     
     def get_gdp_growth(self, year):
-        gdp_change = (pd.read_csv(scldatalake + '/International Organizations/IMF World Economic Outlook Database/clean/Real GDP_change_IMF.csv')
-                      .rename(columns={'ISO':'pais_c', year: 'gdp_change'}))
-        gdp_change = gdp_change[['pais_c', 'gdp_change']]
-        gdp_change['gdp_change'] = gdp_change['gdp_change']/100
+        gdp_change = (pd.read_csv(scldatalake + 
+                                  '/International Organizations/World Economic Outlook Database/'+
+                                  'World Economic Outlook Database/indicators_imf_economic_outlook.csv')
+                      .rename(columns={'isoalpha3':'pais_c', 'value': 'gdp_change'}))
+        gdp_change = gdp_change[(gdp_change.indicator=='gdp_change')&
+                                (gdp_change.year==int(year))][['pais_c', 'gdp_change']]        
         
         return gdp_change
         
@@ -55,7 +57,7 @@ class SCLdataSimulation():
         index = ['year','isoalpha3']
         pl = pl.pivot_table(index = index, columns = 'indicator', values = 'value').reset_index()
         pl = pl.reset_index()
-        pl = pl.drop(columns = ['ppp_wdi2011','tc_wdi'])
+        pl = pl.drop(columns = ['ppp_wdi2011'])
         pl = pl.rename(columns = {'isoalpha3':'code'})
         
         # CPI 2011 = 100
@@ -93,17 +95,37 @@ class SCLdataSimulation():
                                      1, 0)
         
         hh['sec_transp'] = np.where(((hh['categopri_ci'] == 1) | (hh['categopri_ci'] == 2)) & 
-                                    ((hh['rama_ci'] == 7) | (hh['ramasec_ci'] == 7)),
+                                    ((hh['rama_ci'] == 7) | (hh['ramasec_ci'] == 7)),   
                                     1, 0)
+        
+        # Switch annual income and poverty lines to monthly income and lines 
+        hh = (hh.assign(lp_ci = np.where(((hh['pais_c'] == 'JAM') | (hh['pais_c'] == 'GTM')), 
+                                    hh["lp_ci"]/12, hh["lp_ci"]),
+                        lpe_ci = np.where(((hh['pais_c'] == 'JAM') | (hh['pais_c'] == 'GTM')), 
+                                    hh["lpe_ci"]/12, hh["lpe_ci"]),
+                        pc_ytot_ch_ofi = np.where(((hh['pais_c'] == 'JAM') | (hh['pais_c'] == 'GTM')), 
+                                    hh["pc_ytot_ch_ofi"]/12, hh["pc_ytot_ch_ofi"])
+                    ))
+        
         return hh
         
-    def simulate_shock(self, shock_component, shock_weight, shock_population, gdp_growth_population, year='2022'): 
+    def simulate_shock(self, shock_component, shock_weight, shock_population,
+                       gdp_growth_population, gdp_growth='IMF', year='2022'): 
         """
         """
 
         data_ = self.get_poverty_lines(shock_component)
         tasas = self.harmonized.copy()
-        growth = self.get_gdp_growth(year=year)
+        
+        if gdp_growth=='IMF':
+            growth = self.get_gdp_growth(year=year)
+        elif gdp_growth==None:
+            growth = pd.read_excel(scldatalake + '/Manuals and Standards/'+
+                                   'IADB country and area codes for statistical use/'+
+                                   'IADB_country_codes_admin_0.xlsx',engine='openpyxl')
+            growth['gdp_change'] = 0
+            growth['pais_c'] = growth['isoalpha3']
+            growth = growth[['pais_c', 'gdp_change']]            
 
         ####################
         # International
@@ -133,7 +155,7 @@ class SCLdataSimulation():
         for name in lp_vars:
             data_.loc[data_.pais_c == 'VEN',name] = data_.loc[data_.pais_c == 'VEN',name] / 100000000
 
-        data_ = data_[['pais_c','anio_c','weight','lp5_ci', 'lp5_ci_delta', 'lp31_ci', 'lp31_ci_delta']]
+        data_ = data_[['pais_c','anio_c','weight','lp5_ci', 'lp5_ci_delta', 'lp31_ci', 'lp31_ci_delta', 'tc_wdi']]
 
         tasas = tasas.drop(['lp5_ci', 'lp31_ci'], axis=1).merge(data_, on = ['pais_c', 'anio_c'], how = 'left')
         
@@ -143,13 +165,18 @@ class SCLdataSimulation():
         ####################
         # Note: lpe_ci is the food basket line. The non-food part would not be affected by the exogenous shock.
         tasas['lp_ci_no_alim'] = tasas['lp_ci'] - tasas['lpe_ci'] 
-        # Impacts - direct shock
-        tasas['lpe_ci_delta'] = tasas['lpe_ci'] * (1 - tasas['weight']) + tasas['lpe_ci'] * tasas['weight'] * (1 + shock_weight)  
-        # Impacts - only to food basket
-        tasas['lp_ci_delta'] = tasas['lp_ci_no_alim'] + tasas['lpe_ci'] * (1 - tasas['weight']) + tasas['lpe_ci'] * tasas['weight'] * (1 + shock_weight) 
         
-        # The difference is the same in the two thresholds
-        tasas['lp_ci_diff'] = tasas['lp_ci_delta'] - tasas['lp_ci']
+        # Impacts - direct shock
+        tasas['lpe_ci_delta'] = (tasas['lpe_ci'] * (1 - tasas['weight'])) +\
+                                ((tasas['lpe_ci'] * ( tasas['weight']  )) * (1 + shock_weight) )
+        
+        # Impacts - only to food basket
+        tasas['lp_ci_delta'] = tasas['lp_ci_no_alim'] +\
+                               (tasas['lpe_ci'] * (1 - tasas['weight'])) +\
+                               ((tasas['lpe_ci'] * ( tasas['weight']  )) * (1 + shock_weight) )
+        
+        # Difference in poverty line
+        tasas['lp_ci_diff'] = tasas['lpe_ci_delta'] - tasas['lpe_ci']
         
         ####################
         # Shock Targeting
@@ -179,27 +206,28 @@ class SCLdataSimulation():
         # Recreate poverty - national and int
         ####################
         tasas = (tasas.assign(
-                             # International
+                             # International definition (pre shock)
                              poor_int= np.where(tasas['ytot_ci'] <tasas['lp5_ci'],1,
                                                 np.where((tasas['ytot_ci'] >= tasas['lp5_ci']) & 
                                                       (~tasas['ytot_ci'].isna()), 0, None)),
                              poor31_int= np.where((tasas['ytot_ci'] <tasas['lp31_ci']),1,
                                               np.where((tasas['ytot_ci']>=tasas['lp31_ci']) &  
                                                        (~tasas['ytot_ci'].isna()), 0,None)),
+                            # new income vs new poverty line (after shock)
                              poor_int_delta= np.where(tasas['ytot_ci_delta'] <tasas['lp5_ci_delta'],1,
                                                   np.where((tasas['ytot_ci_delta']>=tasas['lp5_ci_delta']) & 
                                                            (~tasas['ytot_ci_delta'].isna()), 0, None)),
                              poor31_int_delta= np.where((tasas['ytot_ci_delta'] <tasas['lp31_ci_delta']),1,
                                             np.where((tasas['ytot_ci_delta']>=tasas['lp31_ci_delta']) &  
                                                      (~tasas['ytot_ci_delta'].isna()), 0,None)),
-                             # National
+                             # National (pre shock)
                              poor_national= np.where((tasas['pc_ytot_ch_ofi'] <tasas['lp_ci']),1,
                                             np.where((tasas['pc_ytot_ch_ofi']>=tasas['lp_ci']) &  
                                                      (~tasas['pc_ytot_ch_ofi'].isna()), 0,None)),           
                              poor_e_national = np.where((tasas['pc_ytot_ch_ofi'] < tasas['lpe_ci']),1,
                                             np.where((tasas['pc_ytot_ch_ofi']>=tasas['lpe_ci']) & 
                                                      ~(tasas['pc_ytot_ch_ofi'].isna()), 0,None)), 
-
+                            # National  (after shock)
                              poor_national_delta= np.where((tasas['pc_ytot_ch_ofi_delta'] <tasas['lp_ci_delta']),1,
                                             np.where((tasas['pc_ytot_ch_ofi_delta']>=tasas['lp_ci_delta']) &  
                                                      (~tasas['pc_ytot_ch_ofi_delta'].isna()), 0,None)),           
@@ -215,7 +243,82 @@ class SCLdataSimulation():
         
         return tasas
     
-    def simulate_changes(self, shock_component, shock_weights, shock_population, gdp_growth_population, year='2022'): 
+
+    def create_indicators(self, tasas, group):    
+        """
+        """
+        out = (tasas.assign(population_int = np.where(~(tasas['poor_int'].isna()),tasas.factor_ch, None),
+                            population_nat = np.where(~(tasas['poor_national'].isna()),tasas.factor_ch, None),
+                            
+                            # poverty before shock
+                            ## International
+                            poor_int_pop = (tasas["factor_ch"] * tasas['poor_int']),
+                            poor31_int_pop = (tasas["factor_ch"] * tasas['poor31_int']),
+                            ## National
+                            poor_national_pop = (tasas["factor_ch"] * tasas['poor_national']),
+                            poor_e_national_pop =  (tasas["factor_ch"] * tasas['poor_e_national']),
+                            
+                            # Poverty after shock
+                            ## International
+                            poor_int_delta_pop = (tasas["factor_ch"] * tasas['poor_int_delta']),
+                            poor31_int_delta_pop = (tasas["factor_ch"] * tasas['poor31_int_delta']),
+                            ## National                            
+                            poor_national_delta_pop = (tasas["factor_ch"] * tasas['poor_national_delta']),
+                            poor_e_national_delta_pop =  (tasas["factor_ch"] * tasas['poor_e_national_delta']),
+                            
+                            # Change
+                            ## People
+                            poor_national_new_pop = (tasas['poor_national_new'] * tasas['factor_ch']), 
+                            poor_e_national_new_pop = (tasas['poor_e_national_new'] * tasas['factor_ch']),
+                            
+                            ## Resources needed to mitigate the effect ( factor[I = 0,1] * diff ) - people bellow the 
+                            poor_national_recovery = (tasas['poor_national'] * tasas['factor_ch'] * (tasas['lp_ci_diff']/tasas['tc_wdi'])), 
+                            poor_e_national_recovery = (tasas['poor_e_national'] * tasas['factor_ch'] * (tasas['lp_ci_diff']/tasas['tc_wdi'])), 
+                            
+                            ## Resources needed to mitigate the effect ( factor[I = 0,1] * diff ) - people in the threshold
+                            poor_national_new_recovery = (tasas['poor_national_new'] * tasas['factor_ch'] * (tasas['lp_ci_diff']/tasas['tc_wdi'])), 
+                            poor_e_national_new_recovery = (tasas['poor_e_national_new'] * tasas['factor_ch'] * (tasas['lp_ci_diff']/tasas['tc_wdi']))) 
+               
+               
+               .groupby(group)
+               .agg({'factor_ch':sum,
+                     'population_int':sum,
+                     'population_nat':sum,
+                     # Before shock
+                     'poor_int_pop':sum,
+                     'poor31_int_pop':sum,
+                     'poor_national_pop':sum,
+                     'poor_e_national_pop':sum,
+                     # After shock
+                     'poor_int_delta_pop':sum,
+                     'poor31_int_delta_pop':sum,
+                     'poor_national_delta_pop':sum,
+                     'poor_e_national_delta_pop':sum,
+                     
+                     # Change
+                     ## People
+                     'poor_national_new_pop':sum,
+                     'poor_e_national_new_pop':sum,                     
+                     ## Resources needed to mitigate the effect ( factor[I = 0,1] * diff )
+                     'poor_national_recovery':sum,
+                     'poor_e_national_recovery':sum,                          
+                     'poor_national_new_recovery':sum,
+                     'poor_e_national_new_recovery':sum,                     
+                    })).reset_index().rename(columns={'factor_ch':'population'})
+
+        out = (out.assign(poor_int = (out["poor_int_pop"] / out['population_int']),
+                          poor_int_delta = (out["poor_int_delta_pop"] / out['population_int']),
+                          poor31_int = (out["poor31_int_pop"] / out['population_int']),
+                          poor31_int_delta = (out["poor31_int_delta_pop"] / out['population_int']),
+                          poor_national = (out["poor_national_pop"] / out['population_nat']),
+                          poor_national_delta = (out["poor_national_delta_pop"] / out['population_nat']),                  
+                          poor_e_national = (out["poor_e_national_pop"] / out['population_nat']),
+                          poor_e_national_delta = (out["poor_e_national_delta_pop"] / out['population_nat'])
+                         ))# .drop(['population_int', 'population_nat'], axis=1))
+        
+        return out.sort_values('pais_c')    
+
+    def simulate_changes(self, shock_component, shock_weights, shock_population, gdp_growth_population, gdp_growth, year='2022'): 
         """
         """
         simulations = []
@@ -224,6 +327,7 @@ class SCLdataSimulation():
                                          shock_weight=shock_weight,
                                          shock_population=shock_population,
                                          gdp_growth_population=gdp_growth_population,
+                                         gdp_growth=gdp_growth, 
                                          year=year)
             country_group = self.country_results(change)
             country_group['shock_weight'] = shock_weight
@@ -248,135 +352,37 @@ class SCLdataSimulation():
         simulations_concat = pd.concat(simulations)
 
         return simulations_concat     
-
-    def region_results(self, tasas):
-        """
-        """
-        tasas['pais_c'] = 'LAC'
-        out = (tasas.assign(population_int = np.where(~(tasas['poor_int'].isna()),tasas.factor_ch, None),
-                                    population_nat = np.where(~(tasas['poor_national'].isna()),tasas.factor_ch, None),
-                                    poor_int_pop = (tasas["factor_ch"] * tasas['poor_int']),
-                                    poor_int_delta_pop = (tasas["factor_ch"] * tasas['poor_int_delta']),
-                                    poor31_int_pop = (tasas["factor_ch"] * tasas['poor31_int']),
-                                    poor31_int_delta_pop = (tasas["factor_ch"] * tasas['poor31_int_delta']),
-                                    poor_national_pop = (tasas["factor_ch"] * tasas['poor_national']),
-                                    poor_national_delta_pop = (tasas["factor_ch"] * tasas['poor_national_delta']),
-                                    poor_e_national_pop =  (tasas["factor_ch"] * tasas['poor_e_national']),
-                                    poor_e_national_delta_pop =  (tasas["factor_ch"] * tasas['poor_e_national_delta']),
-                                    # resources needed to mitigate the effect ( factor[I = 0,1] * diff )
-                                    poor_national_new_recovery = (tasas['poor_national_new'] * tasas['factor_ch'] * tasas['lp_ci_diff']/tasas['tc_c'] ),
-                                    poor_e_national_new_recovery = (tasas['poor_e_national_new'] * tasas['factor_ch'] * tasas['lp_ci_diff']/tasas['tc_c']))
-                 .groupby(['pais_c'])
-                       .agg({'factor_ch':sum,
-                             'population_int':sum,
-                             'population_nat':sum,
-                             'poor_int_pop':sum,
-                             'poor_int_delta_pop':sum,
-                             'poor31_int_pop':sum,
-                             'poor31_int_delta_pop':sum,
-                             'poor_national_pop':sum,
-                             'poor_national_delta_pop':sum,
-                             'poor_e_national_pop':sum,
-                             'poor_e_national_delta_pop':sum,
-                             'poor_national_new_recovery':sum,
-                             'poor_e_national_new_recovery':sum,                     
-                            })).reset_index().rename(columns={'factor_ch':'population'})
-        out = (out.assign(poor_int = (out["poor_int_pop"] / out['population_int']),
-                          poor_int_delta = (out["poor_int_delta_pop"] / out['population_int']),
-                          poor31_int = (out["poor31_int_pop"] / out['population_int']),
-                          poor31_int_delta = (out["poor31_int_delta_pop"] / out['population_int']),
-                          poor_national = (out["poor_national_pop"] / out['population_nat']),
-                          poor_national_delta = (out["poor_national_delta_pop"] / out['population_nat']),                  
-                          poor_e_national = (out["poor_e_national_pop"] / out['population_nat']),
-                          poor_e_national_delta = (out["poor_e_national_delta_pop"] / out['population_nat'])
-                         ).drop(['population_int', 'population_nat'], axis=1))
-        
-        return out
+    
     
     def country_results(self, tasas):
         """
         """
-       
-        out = (tasas.assign(population_int = np.where(~(tasas['poor_int'].isna()),tasas.factor_ch, None),
-                            population_nat = np.where(~(tasas['poor_national'].isna()),tasas.factor_ch, None),
-                            poor_int_pop = (tasas["factor_ch"] * tasas['poor_int']),
-                            poor_int_delta_pop = (tasas["factor_ch"] * tasas['poor_int_delta']),
-                            poor31_int_pop = (tasas["factor_ch"] * tasas['poor31_int']),
-                            poor31_int_delta_pop = (tasas["factor_ch"] * tasas['poor31_int_delta']),
-                            poor_national_pop = (tasas["factor_ch"] * tasas['poor_national']),
-                            poor_national_delta_pop = (tasas["factor_ch"] * tasas['poor_national_delta']),
-                            poor_e_national_pop =  (tasas["factor_ch"] * tasas['poor_e_national']),
-                            poor_e_national_delta_pop =  (tasas["factor_ch"] * tasas['poor_e_national_delta']),
-                            # resources needed to mitigate the effect ( factor[I = 0,1] * diff )
-                            poor_national_new_recovery = (tasas['poor_national_new'] * tasas['factor_ch'] * tasas['lp_ci_diff']/tasas['tc_c'] ),
-                            poor_e_national_new_recovery = (tasas['poor_e_national_new'] * tasas['factor_ch'] * tasas['lp_ci_diff']/tasas['tc_c']))
-               .groupby(['anio_c', 'pais_c'])
-               .agg({'factor_ch':sum,
-                     'population_int':sum,
-                     'population_nat':sum,
-                     'poor_int_pop':sum,
-                     'poor_int_delta_pop':sum,
-                     'poor31_int_pop':sum,
-                     'poor31_int_delta_pop':sum,
-                     'poor_national_pop':sum,
-                     'poor_national_delta_pop':sum,
-                     'poor_e_national_pop':sum,
-                     'poor_e_national_delta_pop':sum,
-                     'poor_national_new_recovery':sum,
-                     'poor_e_national_new_recovery':sum,                     
-                    })).reset_index().rename(columns={'factor_ch':'population'})
-
-        out = (out.assign(poor_int = (out["poor_int_pop"] / out['population_int']),
-                          poor_int_delta = (out["poor_int_delta_pop"] / out['population_int']),
-                          poor31_int = (out["poor31_int_pop"] / out['population_int']),
-                          poor31_int_delta = (out["poor31_int_delta_pop"] / out['population_int']),
-                          poor_national = (out["poor_national_pop"] / out['population_nat']),
-                          poor_national_delta = (out["poor_national_delta_pop"] / out['population_nat']),                  
-                          poor_e_national = (out["poor_e_national_pop"] / out['population_nat']),
-                          poor_e_national_delta = (out["poor_e_national_delta_pop"] / out['population_nat'])
-                         ).drop(['population_int', 'population_nat'], axis=1))
         
-        return out.sort_values('pais_c')
+        group = ['anio_c', 'pais_c']
+        out = self.create_indicators(tasas=tasas, group=group)
+        
+        return out
+        
+    def region_results(self, tasas):
+        """
+        """
+        tasas['pais_c'] = 'LAC'
+        group = ['anio_c', 'pais_c']
+        out = self.create_indicators(tasas=tasas, group=group)
+        
+        return out
+
     
     def population_segmentation_results(self, tasas, categories=['pais_c']):
         """
         """    
         #categories = ['anio_c', 'pais_c', 'sexo_ci']
         #categories.extend(categories)
-
-        out = (tasas.assign(population_int = np.where(~(tasas['poor_int'].isna()),tasas.factor_ch,None),
-                            population_nat = np.where(~(tasas['poor_national'].isna()),tasas.factor_ch,None),
-                            poor_int_pop = (tasas["factor_ch"] * tasas['poor_int']),
-                            poor_int_delta_pop = (tasas["factor_ch"] * tasas['poor_int_delta']),
-                            poor31_int_pop = (tasas["factor_ch"] * tasas['poor31_int']),
-                            poor31_int_delta_pop = (tasas["factor_ch"] * tasas['poor31_int_delta']),                    
-                            poor_national_pop = (tasas["factor_ch"] * tasas['poor_national']),
-                            poor_national_delta_pop = (tasas["factor_ch"] * tasas['poor_national_delta']),
-                            poor_e_national_pop =  (tasas["factor_ch"] * tasas['poor_e_national']),
-                            poor_e_national_delta_pop =  (tasas["factor_ch"] * tasas['poor_e_national_delta'])
-                           )
-                .groupby(categories)
-                 .agg({'poor_int_pop':sum,
-                       'poor_int_delta_pop':sum,
-                       'poor31_int_pop':sum,
-                       'poor31_int_delta_pop':sum,
-                       'poor_national_pop':sum,
-                       'poor_national_delta_pop':sum,
-                       'poor_e_national_pop':sum,
-                       'poor_e_national_delta_pop':sum,
-                       'factor_ch':sum,
-                       'population_int':sum,
-                       'population_nat':sum})).reset_index().rename(columns={'factor_ch':'population'})
-
-        out = (out.assign(poor_int = (out["poor_int_pop"] / out['population_int']),
-                          poor_int_delta = (out["poor_int_delta_pop"] / out['population_int']),
-                          poor31_int = (out["poor31_int_pop"] / out['population_int']),
-                          poor31_int_delta = (out["poor31_int_delta_pop"] / out['population_int']),
-                          poor_national = (out["poor_national_pop"] / out['population_nat']),
-                          poor_national_delta = (out["poor_national_delta_pop"] / out['population_nat']),                  
-                          poor_e_national = (out["poor_e_national_pop"] / out['population_nat']),
-                          poor_e_national_delta = (out["poor_e_national_delta_pop"] / out['population_nat'])
-                         ).drop(['population_int', 'population_nat'], axis=1))        
+        tasas['pais_c'] = 'LAC'
+        group = ['anio_c', 'pais_c']
+        group.extend(categories)
+        
+        out = self.create_indicators(tasas=tasas, group=group)
         
         return out
     
