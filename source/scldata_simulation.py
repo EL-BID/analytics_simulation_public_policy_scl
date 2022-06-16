@@ -51,6 +51,7 @@ class SCLdataSimulation():
         """
         """       
         povertyline = "Data Projects/International Poverty Lines/international_poverty_lines.csv"
+        povertyline = "Data Projects/International Poverty Lines/International_Poverty_Lines_LAC.csv"
         pl          = pd.read_csv(f'{self.scldatalake}/{povertyline}')
 
         # Reshape long to wide 
@@ -271,7 +272,10 @@ class SCLdataSimulation():
                             poor_national_new_pop = (tasas['poor_national_new'] * tasas['factor_ch']), 
                             poor_e_national_new_pop = (tasas['poor_e_national_new'] * tasas['factor_ch']),
                             
-                            ## Resources needed to mitigate the effect ( factor[I = 0,1] * diff ) - people bellow the 
+                            ## Resources needed to mitigate the effect ( factor * diff ) - all population
+                            national_recovery = (tasas['factor_ch'] * (tasas['lp_ci_diff']/tasas['tc_wdi'])), 
+
+                            ## Resources needed to mitigate the effect ( factor[I = 0,1] * diff ) - people bellow the poverty line
                             poor_national_recovery = (tasas['poor_national'] * tasas['factor_ch'] * (tasas['lp_ci_diff']/tasas['tc_wdi'])), 
                             poor_e_national_recovery = (tasas['poor_e_national'] * tasas['factor_ch'] * (tasas['lp_ci_diff']/tasas['tc_wdi'])), 
                             
@@ -300,6 +304,7 @@ class SCLdataSimulation():
                      'poor_national_new_pop':sum,
                      'poor_e_national_new_pop':sum,                     
                      ## Resources needed to mitigate the effect ( factor[I = 0,1] * diff )
+                     'national_recovery':sum, 
                      'poor_national_recovery':sum,
                      'poor_e_national_recovery':sum,                          
                      'poor_national_new_recovery':sum,

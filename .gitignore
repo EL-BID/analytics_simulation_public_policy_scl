@@ -1,7 +1,9 @@
+data/**
 .env
 .env.swp
 .ipynb_checkpoints/
 **.Rproj.user
+**__pycache__
 **.Rhistory
 analytics_simulation_public_policy_scl.Rproj
 *.R
