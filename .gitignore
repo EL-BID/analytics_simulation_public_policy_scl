@@ -1,3 +1,14 @@
 .env
 .env.swp
 .ipynb_checkpoints/
+**.Rproj.user
+**.Rhistory
+analytics_simulation_public_policy_scl.Rproj
+*.R
+*.ini
+*.csv
+*.pdf
+*.txt
+*.csv
+*.html
+*.dcf
