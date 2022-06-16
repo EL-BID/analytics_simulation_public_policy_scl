@@ -1,13 +1,17 @@
+---
+output:
+  html_document: default
+  pdf_document:
+    latex_engine: xelatex
+  word_document: default
+---
+
+![IDB Logo](assets/iadb.png)
+
 **SCL Data - Data Ecosystem Working Group**
-
-[![IDB Logo](https://scldata.iadb.org/assets/iadb-7779368a000004449beca0d4fc6f116cc0617572d549edf2ae491e9a17f63778.png)](https://scldata.iadb.org)
-
 
 # Rising Food Prices and Poverty in Latin America and the Caribbean:
 ## Effect of Ukrainian invasion
-
-_Lina Arias, Laura Goyeneche; Roberto Sanchez; Luis Tejerina; Eric Torres_
-
 
 # [Summary](#summary) 
  
