@@ -17,7 +17,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
 
-scldatalake = "s3://cf-p-scldata-prod-s3-p-scldata-app"
+from dotenv import load_dotenv
+load_dotenv('/home/ec2-user/SageMaker/.env')
+sclbucket = os.getenv('sclbucket')
+scldatalake = 's3://{0}/'.format(sclbucket)
+
+
 
 fig=plt.figure(figsize=(12,8), dpi= 100, facecolor='w', edgecolor='k')
 pd.set_option('display.float_format', lambda x: '%.3f' % x)
@@ -427,7 +432,3 @@ class SCLdataSimulation():
             plt.ylabel(group[-1])
             plt.yticks(rotation = 45)
         return plt.show()
-    
-    
-    
-

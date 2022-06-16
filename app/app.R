@@ -1,7 +1,6 @@
-#library(shinydashboard)
 options(warn = -1)
-
-
+#install.packages("devtools")
+#library(shinydashboard)
 library(semantic.dashboard)
 library(shiny)
 library(tidyverse)
@@ -13,15 +12,17 @@ library(tidytext)
 library(leaflet)
 library(colorspace)
 library(sf)
-
+#devtools::install_github("EL-BID/idbsocialdataR@main")
 library(idbsocialdataR)
+
+### Data & Params ###
+#####################
+
 height_='100em'
 
 skip_countries <- c('Guyana', 'Venezuela')
 skip_iso <- c('GUY', 'VEN')
 
-#install.packages("devtools")
-#devtools::install_github("EL-BID/idbsocialdataR@main")
 countries <- idbsocialdataR:::get_countries() %>% select(isoalpha3, country_name_en) 
 
 gdp_data <- read_csv('gdp_output.csv') %>% 
@@ -41,6 +42,8 @@ data_source <- read_csv('simulations_concat.csv') %>%
 
 # map <- idbsocialdataR:::get_map()
 
+###      UI       ###
+#####################
 
 ui <- dashboardPage(
   dashboardHeader(title = "SCL Policy Simulator"),
@@ -241,21 +244,11 @@ ui <- dashboardPage(
         
         )))
 
+###    Server     ###
+#####################
 
 server <- function(input, output) {
-  #   
-  #   output$mymap <- renderLeaflet({
-  #     
-  #     leaflet() %>% 
-  #       addTiles() %>% 
-  #       setView()
-  #     
-  #     library(leaflet)
-  #     
-  #     m <- leaflet() %>%
-  #       addTiles()
-  #   })
-  
+    
   output$mymap <-  renderPlotly({
     indicator <- 'poor_national_change'
     t <- load_data_shock()  %>% 
@@ -320,18 +313,6 @@ server <- function(input, output) {
                                 }
   )
   
-  # output$pdf_download = downloadHandler(
-  #   filename = 'report.pdf',
-  #   
-  #   content = function(file) {
-  #     #out = knit2pdf('README.md', clean = TRUE)
-  #     out = rmarkdown::render("README.md", 'pdf_document')
-  #     file.rename(out, file) # move pdf to file for downloading
-  #   },
-  #   
-  #   contentType = 'application/pdf'
-  # )
-  
   output$downloadDict <- downloadHandler(
     filename = function() {
       paste('simulations_demo', ".csv", sep = "")
@@ -340,9 +321,6 @@ server <- function(input, output) {
       write.csv(load_data(), file, row.names = FALSE)
     }
   )
-  
-  
-  
   
   ############
   ##### Data
@@ -499,11 +477,10 @@ server <- function(input, output) {
     return( label_percent(accuracy=0.001, suffix = " %")(count)) 
   })  
   
-  
-  
   ############
   ##### Plots
   ############
+    
   output$lac_change <- renderPlotly({
     p<-load_data_shock() %>% 
       filter(shock_weight==round(input$shock,1)) %>% 
@@ -549,11 +526,7 @@ server <- function(input, output) {
     
     ggplotly(p) %>% style(hoverinfo = 'none')
   })
-  
-  
-  
-  
-  
+    
   output$realpoor <- renderPlotly({
     data<-load_data_shock()
     #qcolor <- qualitative_hcl(length(unique(data$pais_c)), "blues3")
@@ -585,7 +558,6 @@ server <- function(input, output) {
     ggplotly(p) %>% style(hoverinfo = 'none')
   })
   
-
   output$deltapoor <- renderPlotly({
     
     p <- load_data_shock() %>%
@@ -657,7 +629,6 @@ server <- function(input, output) {
     ggplotly(p) %>% style(hoverinfo = 'none')
   })  
   
-  
   output$diff_e <- renderPlotly({
     
     t <- load_data_shock()  %>% 
@@ -701,7 +672,6 @@ server <- function(input, output) {
   
   output$deltapop <- renderPlotly({
     require(scales)
-    
     
     p<-load_data_shock() %>%
       filter(shock_weight==round(input$shock,1)) %>% 
@@ -835,10 +805,6 @@ server <- function(input, output) {
       - Percentage Point Change in Poverty: Real poverty rate minus poverty rate with price shock ')
   })
   
-  
-
-  
-
   
   output$boxplot_all_no_meat <- renderPlot({
     data <- load_data_pre()
