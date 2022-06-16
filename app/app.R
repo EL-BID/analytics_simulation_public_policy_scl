@@ -207,10 +207,10 @@ ui <- dashboardPage(
                                      content =plotlyOutput("deltapoor", height = 400)))),
                        tabBox(title = "Poverty change", color = "grey",
                               tabs = list(
-                                list(menu = "Change in Poverty",
-                                     content = plotlyOutput("diff", height = 400)),
                                 list(menu = "Change in Extreme Poverty",
-                                     content =plotlyOutput("diff_e", height = 400))))
+                                     content =plotlyOutput("diff_e", height = 400)),
+                                list(menu = "Change in Poverty",
+                                     content = plotlyOutput("diff", height = 400))))
                        ),
               fluidRow(box(title = "Transition into poverty",
                            plotlyOutput("deltapop", height = 400)),

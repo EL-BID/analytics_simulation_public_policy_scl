@@ -7,7 +7,6 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 #sns.set_theme()
-
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
