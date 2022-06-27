@@ -1,6 +1,6 @@
 options(warn = -1)
-#install.packages("devtools")
-#library(shinydashboard)
+
+
 library(semantic.dashboard)
 library(shiny)
 library(tidyverse)
@@ -12,19 +12,18 @@ library(tidytext)
 library(leaflet)
 library(colorspace)
 library(sf)
-#devtools::install_github("EL-BID/idbsocialdataR@main")
 library(idbsocialdataR)
+
 
 ### Data & Params ###
 #####################
-
-height_='100em'
-
 skip_countries <- c('Guyana', 'Venezuela')
 skip_iso <- c('GUY', 'VEN')
 
-countries <- idbsocialdataR:::get_countries() %>% select(isoalpha3, country_name_en) 
-
+countries <- idbsocialdataR:::get_countries() %>% select(isoalpha3, country_name_en)
+population <- idbsocialdataR:::query_indicator(indicator = 'population_un',
+                                               year = 2022) %>%
+  select(isoalpha3, population_un=value) 
 gdp_data <- read_csv('gdp_output.csv') %>% 
   filter(year==2020)%>% 
   dplyr::select(year, isoalpha3, value) %>% 
@@ -32,15 +31,15 @@ gdp_data <- read_csv('gdp_output.csv') %>%
   rename(pais_c=isoalpha3, gdp=value) %>% #anio_c=year, 
   filter(!pais_c %in% skip_iso) %>% 
   select(-year)
-
-### Source
 data_source <- read_csv('simulations_concat.csv') %>% 
   mutate(isoalpha3 = pais_c) %>% 
   left_join(countries) %>% 
   left_join(gdp_data) %>% 
-  filter(!country_name_en %in% skip_countries)
+  left_join(population) %>% 
+  filter(!country_name_en %in% skip_countries) %>% 
+  mutate(poor_national_new_pop_calc = (poor_national_delta - poor_national)*population_un,
+         poor_e_national_new_pop_calc = (poor_e_national_delta - poor_e_national)*population_un)
 
-# map <- idbsocialdataR:::get_map()
 
 ###      UI       ###
 #####################
@@ -51,10 +50,7 @@ ui <- dashboardPage(
   dashboardSidebar(sidebarMenu(
     menuItem(tabName = "description", text = "Description", icon = icon("info")),
     menuItem(tabName = "simulator", text = "Simulator", icon = icon("lab")),
-    # menuItem(tabName = "LACmap", text = "Map results", icon = icon("globe")),
-    menuItem(tabName = "regionresults", text = "Distribution results", icon = icon("globe"))
-  )),
-  
+    menuItem(tabName = "regionresults", text = "Distribution results", icon = icon("globe")))),
   dashboardBody(tabItems(
         tabItem(tabName='description',
                 div(style="display:inline-block",downloadButton("pdf", label="Download Report", class = "butt2"),
@@ -78,11 +74,9 @@ ui <- dashboardPage(
                 
               fluidRow(
                 box(
-                  height = 500,
                   title = "External Shock",
                   width = 4,
-                  height =  "height:1000px;" ,
-                  status = "warning", 
+                  height = 500,
                   solidHeader = FALSE, 
                   collapsible = TRUE,
                   
@@ -97,7 +91,7 @@ ui <- dashboardPage(
                                 'All - No meat', 'All'),
                               selected='All - No meat'),
                   p('Choose the components that will be affected by the exogenous shock'),
-                  h3("Schock Level"),
+                  h3("Shock Level"),
                   sliderInput("shock", "Shock level:",min = 0, max = .5, 
                               step = .1, value=.2),
                   p('Choose the pct change of exogenous shock'),
@@ -128,10 +122,8 @@ ui <- dashboardPage(
                   br(' '),
                   
                 ),
-                tabBox(title = "LAC Poverty Change", color = "grey",
+                tabBox(title = "Results", color = "grey",height = 500,
                        tabs = list(
-                         list(menu = "LAC Pct Change",
-                              content = plotlyOutput("lac_change", height = 450)),                         
                          list(menu = "Main Results", 
                               content =
                                 fluidRow(
@@ -143,113 +135,130 @@ ui <- dashboardPage(
                                       color = "yellow", width = 8),
                                     br(''),
                                     valueBox(
-                                      tags$p("Monthly resources required mitigate the effect (USD)
-                                            Sum of the economic impact on people who transitioned into poverty (Crossing the moderate poverty line).",
+                                      tags$p("People who transitioned into Extreme poverty (Crossing the extreme poverty line)",
                                              style = "font-size: 80%;"),
-                                      span(textOutput("resources_required_new"),
-                                           style = "font-size: 80%;"),
-                                      color = "blue", width = 8),
+                                      span(textOutput("population_count_e"),style = "font-size: 80%;"),
+                                      color = "yellow", width = 8),
                                     br(''),
-                                    valueBox(
-                                      tags$p("Monthly resources required mitigate the effect (USD)
-                                        (Sum of the economic impact on **All Families** below the moderate poverty line).",
-                                             style = "font-size: 80%;"),
-                                      span(textOutput("resources_required")
-                                           ,style = "font-size: 80%;"),
-                                      color = "red", width = 8),
-                                    br(''),
-                                    valueBox(
-                                      tags$p("Monthly resources required mitigate the effect (USD)
-                                        (Sum of the economic impact on **All Families**.",
-                                             style = "font-size: 80%;"),
-                                      span(textOutput("national_resources_required")
-                                           ,style = "font-size: 80%;"),
-                                      color = "red", width = 8)
-                                  ),
-                                  column(width = 8,
                                     valueBox(
                                       tags$p("Annual GDP (current US$) World Bank national accounts data, and OECD National Accounts data files.",
                                              style = "font-size: 80%;"),
                                       span(textOutput("gdp")
                                            ,style = "font-size: 80%;"),
-                                      color = "green", width = 8),
-                                    br(''),
+                                      color = "green", width = 8)                                    
+                                    # valueBox(
+                                    #   tags$p("Monthly resources required mitigate the effect (USD)
+                                    #         Sum of the economic impact on people who transitioned into poverty (Crossing the moderate poverty line).",
+                                    #          style = "font-size: 80%;"),
+                                    #   span(textOutput("resources_required_new"),
+                                    #        style = "font-size: 80%;"),
+                                    #   color = "blue", width = 8),
+                                    # br(''),
+                                    # valueBox(
+                                    #   tags$p("Monthly resources required mitigate the effect (USD)
+                                    #     (Sum of the economic impact on **All Families** below the moderate poverty line).",
+                                    #          style = "font-size: 80%;"),
+                                    #   span(textOutput("resources_required")
+                                    #        ,style = "font-size: 80%;"),
+                                    #   color = "red", width = 8),
+                                    # br(''),
+                                    # valueBox(
+                                    #   tags$p("Monthly resources required mitigate the effect (USD)
+                                    #     (Sum of the economic impact on **All Families**.",
+                                    #          style = "font-size: 80%;"),
+                                    #   span(textOutput("national_resources_required")
+                                    #        ,style = "font-size: 80%;"),
+                                    #   color = "red", width = 8)
+                                  ),
+                                  column(width = 8,
                                     valueBox(
-                                      tags$p("cesources required mitigate the effect (GDP)
+                                      tags$p(" <- sources required mitigate the effect (GDP)
                                             Sum of the economic impact on people who transitioned into poverty (Crossing the moderate poverty line).",
                                              style = "font-size: 80%;"),
                                       span(textOutput("resources_required_new_gdp"),
                                            style = "font-size: 80%;"),
-                                      color = "blue", width = 8),
+                                      color = "red", width = 8),
                                     br(''),
                                     valueBox(
-                                      tags$p("Resources required mitigate the effect (GDP)
-                                        (Sum of the economic impact on **All Families** below the moderate poverty line).",
+                                      tags$p("Annual Resources required mitigate the effect (GDP)
+                                        (Sum of the economic impact on families below the moderate poverty line).",
                                              style = "font-size: 80%;"),
                                       span(textOutput("resources_required_gdp")
                                            ,style = "font-size: 80%;"),
                                       color = "red", width = 8),
                                     br(''),
                                     valueBox(
-                                      tags$p("Resources required mitigate the effect (GDP)
+                                      tags$p("Annual Resources required mitigate the effect (GDP)
                                         (Sum of the economic impact on **All Families**.",
                                              style = "font-size: 80%;"),
                                       span(textOutput("national_resources_required_gdp")
                                            ,style = "font-size: 80%;"),
                                       color = "red", width = 8)
-                                    ))
-                              ),
-                         list(menu = "Map Pct Point Change",
-                              content = plotlyOutput("mymap", height = 450))
+                                    )
+                                  )
+                              )
                          ))),
-              fluidRow(tabBox(title = "Poverty Rates", color = "grey",
+              fluidRow(tabBox(title = "Pct Change", color = "grey",
+                              tabs = list(
+                                list(menu = "Pct Change",
+                                     content = plotlyOutput("lac_change", height = 450)),                         
+                                list(menu = "Pct Change (Urban/Rural)",
+                                     content = plotlyOutput("lac_change_category", height = 450))
+                                )),
+                       tabBox(title = "Poverty Rates", color = "grey",
                               tabs = list(
                                 list(menu = "Official Poverty",
-                                     content = plotlyOutput("realpoor", height = 400)),
+                                     content = plotlyOutput("realpoor", height = 450)),
                                 list(menu = "Poverty after shock",
-                                     content =plotlyOutput("deltapoor", height = 400)))),
-                       tabBox(title = "Poverty change", color = "grey",
+                                     content =plotlyOutput("deltapoor", height = 450))))
+              ),              
+              fluidRow(tabBox(title = "Poverty change", color = "grey",
                               tabs = list(
-                                list(menu = "Change in Extreme Poverty",
-                                     content =plotlyOutput("diff_e", height = 400)),
                                 list(menu = "Change in Poverty",
-                                     content = plotlyOutput("diff", height = 400))))
+                                     content = plotlyOutput("diff", height = 450)),
+                                list(menu = "Change in Extreme Poverty",
+                                     content =plotlyOutput("diff_e", height = 450)))),
+                       tabBox(title = "Map Pct Change", color = "grey",
+                              tabs = list(
+                                list(menu = "Map Pct Point Change (Poverty)",
+                                     content = plotlyOutput("map_poverty", height = 450)),
+                                list(menu = "Map Pct Point Change (Extreme Poverty)",
+                                     content = plotlyOutput("map_e_poverty", height = 450))))
                        ),
               fluidRow(box(title = "Transition into poverty",
-                           plotlyOutput("deltapop", height = 400)),
-                       box(title = "Recovery (USD)",
-                           plotlyOutput("deltarecov", height = 400))
+                           plotlyOutput("deltapop", height = 450)),
+                       tabBox(title = "Resources for recovery", color = "grey",
+                              tabs = list(
+                                list(menu = "Recovery (GDP %)",
+                                     content = plotlyOutput("deltarecov_pct", height = 450)),
+                                list(menu = "Recovery (USD)",
+                                     content = plotlyOutput("deltarecov", height = 450))))                       
                        )
-
-        # tabItem(tabName = "LACmap",
-        #         fluidRow(
-        #           box(title = "Map",
-        #               leafletOutput("lac_map"))
-        # )),
         ),
         tabItem(tabName = "regionresults",
                 fluidRow(
                   box(title = "Change in Poverty - grains",
-                      plotOutput("boxplot_granos", height = 400)),
+                      plotOutput("boxplot_granos", height = 600)),
                   box(title = "Change in Poverty - grains, breads and cereals.",
-                      plotOutput("boxplot", height = 400))),
+                      plotOutput("boxplot", height = 600))),
                 fluidRow(
                   box(title = "Change in Poverty - All products *except* meat",
-                      plotOutput("boxplot_all_no_meat", height = 400)),
+                      plotOutput("boxplot_all_no_meat", height = 600)),
                   box(title = "Change in Poverty - All products",
-                      plotOutput("boxplot_all", height = 400))
-                )
+                      plotOutput("boxplot_all", height = 600)))
         )
-        
-        
-        )))
+        )),
+  tags$head(tags$style(HTML('* {font-family: "Open Sans"};')))
+  )
 
 ###    Server     ###
 #####################
 
+###    Server     ###
+#####################
 server <- function(input, output) {
     
-  output$mymap <-  renderPlotly({
+  output$map_poverty <-  renderPlotly({
     indicator <- 'poor_national_change'
     t <- load_data_shock()  %>% 
       filter(shock_weight %in% c( round(input$shock,1))) %>% 
@@ -276,33 +285,60 @@ server <- function(input, output) {
     ggplotly(p)
     
     })
+  
+  output$map_e_poverty <-  renderPlotly({
+    indicator <- 'poor_e_national_change'
+    t <- load_data_shock()  %>% 
+      filter(shock_weight %in% c( round(input$shock,1))) %>% 
+      select(anio_c, pais_c,  shock_weight,  everything()) %>% 
+      mutate(poor_national_change = (poor_national_delta - poor_national)*100,
+             poor_e_national_change = (poor_e_national_delta - poor_e_national)*100, 
+             type = if_else(poor_national_change<0,'Decreased', 'Increased')) %>% 
+      select(anio_c, pais_c,  type, poor_national_change, poor_e_national_change) 
+    
+    output <- idbsocialdataR:::get_map() %>%
+      mutate(pais_c = isoalpha3) %>% 
+      left_join(t)
+    indicator<-'poor_e_national_change'
+    p <- ggplot(data = output, aes(fill = poor_e_national_change)) +
+      geom_sf(size = 0.25) +
+      scale_fill_distiller(name='Percentage Point Change in Extreme Poverty',
+                           palette = "Blues",
+                           breaks = pretty_breaks(), direction=1)+
+      theme(axis.text.x = element_blank(),
+            axis.text.y = element_blank(),
+            axis.ticks = element_blank(),
+            panel.background = element_rect(fill = "white", color = NA))
+    
+    ggplotly(p)
+    
+  })
 
   ############
   ##### Output
   ############  
   
-  output$readme <- renderUI({
-    includeHTML(rmarkdown::render("README.md", 'html_document'))
-
-  })
+  # output$readme <- renderUI({
+  #   includeHTML(rmarkdown::render("README.md", 'html_document'))
+  # 
+  # })
   
   output$readme2 <- renderUI({
     HTML(markdown::markdownToHTML('README.md',
                                   style=list(html.output='diff.w.style')))
   })
 
-  output$readme3 <- renderUI({
-    HTML(markdown::markdownToHTML(knit('README.md', quiet = TRUE),
-                                  style=list(html.output='diff.w.style')))
-  })
+  # output$readme3 <- renderUI({
+  #   HTML(markdown::markdownToHTML(knit('README.md', quiet = TRUE),
+  #                                 style=list(html.output='diff.w.style')))
+  # })
   
   output$downloadData <- downloadHandler(
     filename = function() {
       str_c('simulations_demo_shock_level_',toString(round(input$shock,1)), ".csv")
     },
     content = function(file) {
-      write.csv(load_data() %>%
-                  filter(shock_weight==round(input$shock,1)),
+      write.csv(load_data_shock() ,
                 file, row.names = FALSE)
     }
   )
@@ -318,7 +354,7 @@ server <- function(input, output) {
       paste('simulations_demo', ".csv", sep = "")
     },
     content = function(file) {
-      write.csv(load_data(), file, row.names = FALSE)
+      write.csv(load_data_shock(), file, row.names = FALSE)
     }
   )
   
@@ -342,14 +378,19 @@ server <- function(input, output) {
       data <- data %>% 
         filter(is.na(gdp_growth))
     }
+    
+    if (input$shock_population=='agricultural sector') {
+      data <- data %>% 
+        filter(shock_population=='sec_agri') 
+    } else if   (input$shock_population!='agricultural sector'){
+      data <- data %>% 
+        filter(is.na(shock_population))
+    }
+    
   })
   
   load_data <- reactive({
     data <- load_data_pre()
-    if (input$shock_population=='agricultural sector') {
-      data <- data %>% 
-        filter(shock_population=='sec_agri') 
-    }    
     
     if (input$shock_component=='Grains') {
       data <- data %>% 
@@ -368,9 +409,19 @@ server <- function(input, output) {
     return(data)
   })
   
+  
   load_data_shock <- reactive({
     data <- load_data() %>%
-      filter(shock_weight %in% c(0.0, round(input$shock,1))) 
+      filter(shock_weight %in% c(0.0, round(input$shock,1))) %>% 
+      filter(is.na(category))
+    #%>% filter((pais_c %in% c('GTM', 'JAM'))==FALSE)
+    return(data)
+  })
+  
+  load_data_shock_category <- reactive({
+    data <- load_data() %>%
+      filter(shock_weight %in% c(0.0, round(input$shock,1))) %>% 
+      filter(category=='anio_c_pais_c_zona_c')
     #%>% filter((pais_c %in% c('GTM', 'JAM'))==FALSE)
     return(data)
   })
@@ -388,14 +439,36 @@ server <- function(input, output) {
     return(count) 
   })
   
+  gdp_num_country <-reactive({
+    count<- load_data_shock() %>%
+      filter(shock_weight==round(input$shock,1)) %>% 
+      pivot_longer(gdp, 'indicator') %>% 
+      filter(indicator=='gdp') %>%
+      group_by(pais_c) %>% 
+      summarise(value = sum(value,na.rm = TRUE))
+    
+    return(count) 
+  })
+  
   population_count_num <-reactive({
     count <- load_data_shock() %>%
       filter(shock_weight==round(input$shock,1)) %>% 
-      pivot_longer(population:poor_e_national_delta, 'indicator') %>% 
-      filter(indicator %in% c('poor_national_new_pop', 'poor_e_national_new_pop')) %>% 
-      mutate(indicator = case_when(indicator=='poor_national_new_pop' ~ 'Poverty',
-                                   indicator=='poor_e_national_new_pop' ~ 'Extreme Poverty')) %>% 
-      filter(indicator=='Poverty') %>% 
+      pivot_longer(poor_national_new_pop_calc:poor_e_national_new_pop_calc, 'indicator') %>%
+      filter(indicator %in% c('poor_national_new_pop_calc', 'poor_e_national_new_pop_calc')) %>%
+      mutate(indicator = case_when(indicator=='poor_national_new_pop_calc' ~ 'Poverty',
+                                   indicator=='poor_e_national_new_pop_calc' ~ 'Extreme Poverty')) %>%
+      filter(indicator=='Poverty') %>%
+      summarise(value = sum(value,na.rm = TRUE)) %>% pull(value)
+    return(count) 
+  })
+  population_count_num_e <-reactive({
+    count <- load_data_shock() %>%
+      filter(shock_weight==round(input$shock,1)) %>% 
+      pivot_longer(poor_national_new_pop_calc:poor_e_national_new_pop_calc, 'indicator') %>% 
+      filter(indicator %in% c('poor_national_new_pop_calc', 'poor_e_national_new_pop_calc')) %>% 
+      mutate(indicator = case_when(indicator=='poor_national_new_pop_calc' ~ 'Poverty',
+                                   indicator=='poor_e_national_new_pop_calc' ~ 'Extreme Poverty')) %>% 
+      filter(indicator=='Extreme Poverty') %>% 
       summarise(value = sum(value,na.rm = TRUE)) %>% pull(value)
     return(count) 
   })
@@ -438,49 +511,55 @@ server <- function(input, output) {
   
   output$gdp <-renderText({
     count<- gdp_num()
-    return( label_number_si(accuracy=0.001)(count)) 
+    return( label_number_si(accuracy=0.01)(count)) 
   })
   
   output$population_count <-renderText({
     count<- population_count_num()
-    return( label_number_si(accuracy=0.001)(count)) 
+    return( label_number_si(accuracy=0.1)(count)) 
+  })
+  
+  output$population_count_e <-renderText({
+    count<- population_count_num_e()
+    return( label_number_si(accuracy=0.1)(count)) 
   })
   
   output$resources_required <-renderText({
     count<- resources_required_num()
-    return( label_number_si(accuracy=0.001)(count)) 
+    return( label_number_si(accuracy=0.01)(count)) 
   })  
   
   output$resources_required_new <-renderText({
     count<- resources_required_new_num()
-    return( label_number_si(accuracy=0.001)(count)) 
+    return( label_number_si(accuracy=0.01)(count)) 
   })  
   
   output$national_resources_required <-renderText({
     count<- resources_national_required_num()
-    return( label_number_si(accuracy=0.001)(count)) 
+    return( label_number_si(accuracy=0.01)(count)) 
   })  
   
   
   output$resources_required_gdp <-renderText({
     count<- resources_required_num()*12/gdp_num()
-    return( label_percent(accuracy=0.001,suffix = " %")(count)) 
+    return( label_percent(accuracy=0.01,suffix = " %")(count)) 
   })  
   
   output$resources_required_new_gdp <-renderText({
     count<- resources_required_new_num()*12/gdp_num()
-    return( label_percent(accuracy=0.001, suffix = " %")(count)) 
+    return( label_percent(accuracy=0.01, suffix = " %")(count)) 
   })  
   
   output$national_resources_required_gdp <-renderText({
     count<- resources_national_required_num()*12/gdp_num()
-    return( label_percent(accuracy=0.001, suffix = " %")(count)) 
+    return( label_percent(accuracy=0.01, suffix = " %")(count)) 
   })  
   
   ############
   ##### Plots
   ############
-    
+  
+  
   output$lac_change <- renderPlotly({
     p<-load_data_shock() %>% 
       filter(shock_weight==round(input$shock,1)) %>% 
@@ -505,7 +584,7 @@ server <- function(input, output) {
                  color = type)) +   
       geom_point(size = 2) + 
       geom_line(aes(group = indicator)) +
-      scale_colour_manual(values = c("Decreased"= "#a1d99b", "Increased"="#fc9272")) +   
+      scale_colour_manual(values = c("Decreased"= "#83b38f", "Increased"="#fc9272")) +   
       theme_minimal() +
       coord_flip() +
       geom_hline(yintercept=0, linetype="dashed", color = "red") +  
@@ -518,13 +597,108 @@ server <- function(input, output) {
                 va='bottom', color='black',
                 size=2) +  
       theme(legend.position = "none") +
-      ylab("Change (last value - simulated value)") +
-      ggtitle('Percentage Point Change in Poverty: Real poverty rate minus poverty rate with price shock') + 
+      ylab("Change (simulated value - latest real value)") +
+      ggtitle('Percentage Point Change in Poverty') + 
       xlab('Country') +
       labs(caption = "Notes:
       - Negative values are a reduction of poverty in percentage points")      
     
     ggplotly(p) %>% style(hoverinfo = 'none')
+  })
+  
+  output$lac_change_category_new <- renderPlotly({
+    
+    p <- load_data_shock_category() %>% 
+      filter(shock_weight==round(input$shock,1)) %>% 
+      group_by(zona_c) %>% 
+      summarize(poor_national_pop=sum(poor_national_pop, na.rm = T),
+                poor_e_national_pop=sum(poor_e_national_pop, na.rm = T),
+                poor_national_delta_pop=sum(poor_national_delta_pop, na.rm = T),
+                poor_e_national_delta_pop=sum(poor_e_national_delta_pop, na.rm = T),
+                population_nat=sum(population_nat, na.rm = T)) %>% 
+      mutate(poor_pct=poor_national_pop/population_nat,
+             poor_e_pct=poor_e_national_pop/population_nat,
+             poor_pct_delta=poor_national_delta_pop/population_nat,
+             poor_e_pct_delta=poor_e_national_delta_pop/population_nat) %>% 
+      mutate(poor_pct_change = poor_pct_delta - poor_pct,
+             poor_e_pct_change = poor_e_pct_delta - poor_e_pct) %>% 
+      pivot_longer(poor_national_pop:poor_e_pct_change, names_to = 'indicator', values_to='value') %>% 
+      filter(indicator %in% c('poor_pct_change', 'poor_e_pct_change')) %>% 
+      mutate(indicator = case_when(indicator=='poor_pct_change' ~ 'Poverty',
+                                   indicator=='poor_e_pct_change' ~ 'Extreme Poverty')) %>% 
+      mutate(type = if_else(value<0,'Decreased', 'Increased')) %>% 
+      mutate(zona_c = case_when(zona_c==0 ~ 'Rural',
+                                zona_c==1 ~ 'Urban')) %>% 
+      mutate(catline = str_c(zona_c, indicator))
+    
+    p <- p %>% 
+      ggplot(aes(x=indicator, y=value,  color=type, fill=type)) + 
+      geom_point(size = 2) + 
+      geom_line(aes(group = indicator)) +
+      facet_wrap(~zona_c) + 
+      scale_colour_manual(values = c("Decreased"= "#83b38f", "Increased"="#fc9272")) +   
+      theme_minimal() +
+      coord_flip() +
+      geom_hline(yintercept=0, linetype="dashed", color = "red") +  
+      geom_segment(aes(xend=indicator, yend=0, color=type)) + 
+      theme(plot.title = element_text(size = 10, face = "bold"),
+            text = element_text(size = 8)) +      
+      geom_text(aes( label = round(value,2),group=1),
+                nudge_y=0.125,
+                va='bottom', color='black',
+                size=2) +              
+      theme(legend.position = "none") +
+      ylab('value') +
+      xlab('Indicator') +
+      ggtitle('Urban/Rural - Percentage Point Change in Poverty: Real poverty rate minus poverty rate with price shock')
+    
+    ggplotly(p) %>% style(hoverinfo = 'none')
+  })
+  
+  output$lac_change_category <- renderPlotly({
+    
+    p <- load_data_shock_category() %>% 
+      filter(shock_weight==round(input$shock,1)) %>% 
+      group_by(zona_c) %>% 
+      summarize(poor_national_pop=sum(poor_national_pop, na.rm = T),
+                poor_e_national_pop=sum(poor_e_national_pop, na.rm = T),
+                poor_national_delta_pop=sum(poor_national_delta_pop, na.rm = T),
+                poor_e_national_delta_pop=sum(poor_e_national_delta_pop, na.rm = T),
+                population_nat=sum(population_nat, na.rm = T)) %>% 
+      mutate(poor_pct=poor_national_pop/population_nat,
+             poor_e_pct=poor_e_national_pop/population_nat,
+             poor_pct_delta=poor_national_delta_pop/population_nat,
+             poor_e_pct_delta=poor_e_national_delta_pop/population_nat) %>% 
+      mutate(poor_pct_change = poor_pct_delta - poor_pct,
+             poor_e_pct_change = poor_e_pct_delta - poor_e_pct) %>% 
+      pivot_longer(poor_national_pop:poor_e_pct_change, names_to = 'indicator', values_to='value') %>% 
+      filter(indicator %in% c('poor_pct_change', 'poor_e_pct_change')) %>% 
+      mutate(indicator = case_when(indicator=='poor_pct_change' ~ 'Poverty',
+                                   indicator=='poor_e_pct_change' ~ 'Extreme Poverty')) %>% 
+      mutate(type = if_else(value<0,'Decreased', 'Increased')) %>% 
+      mutate(zona_c = case_when(zona_c==0 ~ 'Rural',
+                                zona_c==1 ~ 'Urban'))
+    
+    p <- p %>% 
+      ggplot(aes(x=reorder(zona_c, desc(value)), y=value,  color=type, fill=type)) + 
+      geom_bar(stat="identity") +
+      scale_y_continuous(labels=scales::percent) +
+      geom_text(aes( label = round(value*100,2),group=1),
+                nudge_y=0.125,
+                size=2) +  
+      facet_wrap(~indicator) + 
+      theme_minimal() +
+      theme(legend.position = "none") +   
+      scale_colour_manual(values = c("Decreased"= "#83b38f", "Increased"="#fc9272")) +
+      scale_fill_manual(values = c("Decreased"= "#83b38f", "Increased"="#fc9272")) +      
+      ylab('value') +
+      xlab('Geographic Area') +
+      ggtitle('Urban/Rural - Percentage Point Change in Poverty: 
+              Real poverty rate minus poverty rate with price shock') + 
+      theme(plot.title = element_text(size = 10, face = "bold"),
+            text = element_text(size = 8)) +      
+      coord_flip()
+    ggplotly(p)%>% style(hoverinfo = 'none')
   })
     
   output$realpoor <- renderPlotly({
@@ -609,7 +783,7 @@ server <- function(input, output) {
                  color = type)) +   
       geom_point(size = 2) + 
       geom_line(aes(group = pais_c)) +
-      scale_colour_manual(values = c("Decreased"= "#a1d99b", "Increased"="#fc9272")) +   
+      scale_colour_manual(values = c("Decreased"= "#83b38f", "Increased"="#fc9272")) +   
       theme_minimal() +
       coord_flip() +
       geom_hline(yintercept=0, linetype="dashed", color = "red") +  
@@ -620,11 +794,16 @@ server <- function(input, output) {
                 nudge_y=0.125,
                 va='bottom', color='black',
                 size=2) +              theme(legend.position = "none") +
-      ylab("Change (last value - simulated value)") +
-      ggtitle('Percentage Point Change in Poverty: Real poverty rate minus poverty rate with price shock') + 
+      ylab("Change (simulated value - latest real value)") +
+      ggtitle('Percentage Point Change in Poverty: 
+              Real poverty rate minus poverty rate with price shock') + 
       xlab('Country') +
       labs(caption = "Notes:
-      - Negative values are a reduction of poverty in percentage points")      
+      - Negative values are a reduction of poverty in percentage points")
+    
+    ggsave('./assets/diff_pov.png',
+           plot = p,
+           device = "png")
     
     ggplotly(p) %>% style(hoverinfo = 'none')
   })  
@@ -649,7 +828,7 @@ server <- function(input, output) {
                  color = type)) +   
       geom_point(size = 2) + 
       geom_line(aes(group = pais_c)) +
-      scale_colour_manual(values = c("Decreased"= "#a1d99b", "Increased"="#fc9272")) +   
+      scale_colour_manual(values = c("Decreased"= "#83b38f", "Increased"="#fc9272")) +   
       theme_minimal() +
       coord_flip() +
       geom_hline(yintercept=0, linetype="dashed", color = "red") +  
@@ -660,11 +839,16 @@ server <- function(input, output) {
                 nudge_y=0.125,
                 va='bottom', color='black',
                 size=2) +              theme(legend.position = "none") +
-      ylab("Change (last value - simulated value)") +
-      ggtitle('Percentage Point Change in Extreme Poverty: Real poverty rate minus poverty rate with price shock') + 
+      ylab("Change (simulated value - latest real value)") +
+        ggtitle('Percentage Point Change in Extreme Poverty:
+              Real poverty rate minus poverty rate with price shock') + 
       xlab('Country') +
       labs(caption = "Notes:
       - Negative values are a reduction of poverty in percentage points")      
+    
+    ggsave('./assets/diff_e_pov.png',
+           plot = p,
+           device = "png")
     
     ggplotly(p) %>% style(hoverinfo = 'none')
   })  
@@ -675,10 +859,10 @@ server <- function(input, output) {
     
     p<-load_data_shock() %>%
       filter(shock_weight==round(input$shock,1)) %>% 
-      pivot_longer(population:poor_e_national_delta, 'indicator') %>% 
-      filter(indicator %in% c('poor_national_new_pop', 'poor_e_national_new_pop')) %>% 
-      mutate(indicator = case_when(indicator=='poor_national_new_pop' ~ 'Poverty',
-                                   indicator=='poor_e_national_new_pop' ~ 'Extreme Poverty')) %>%       
+      pivot_longer(poor_national_new_pop_calc:poor_e_national_new_pop_calc, 'indicator') %>% 
+      filter(indicator %in% c('poor_national_new_pop_calc', 'poor_e_national_new_pop_calc')) %>%  
+      mutate(indicator = case_when(indicator=='poor_national_new_pop_calc' ~ 'Poverty',
+                                   indicator=='poor_e_national_new_pop_calc' ~ 'Extreme Poverty')) %>%       
       ggplot(aes(x=reorder(pais_c, desc(value)), y=value,  fill=pais_c)) + 
       geom_bar(stat="identity") +
       facet_wrap(~indicator) + 
@@ -703,25 +887,27 @@ server <- function(input, output) {
     p<-load_data_shock() %>%
       filter(shock_weight==round(input$shock,1)) %>% 
       pivot_longer(population:poor_e_national_delta, 'indicator') %>% 
-      filter(indicator %in% c('poor_national_new_recovery', 'poor_e_national_new_recovery')) %>% 
-      mutate(indicator = case_when(indicator=='poor_national_new_recovery' ~ 'Poverty',
-                                   indicator=='poor_e_national_new_recovery' ~ 'Extreme Poverty')) %>%       
+      filter(indicator %in% c('poor_national_recovery')) %>%  # , 'poor_e_national_new_pop'
+      mutate(indicator = case_when(indicator=='poor_national_recovery' ~ 'Poverty',
+                                   indicator=='poor_e_national_recovery' ~ 'Extreme Poverty')) %>%       
       mutate(indicator = as.factor(indicator),
              pais_c = as.factor(pais_c),
              pais_c = reorder_within(pais_c, desc(value), indicator)) %>% 
+      mutate(value = value*12) %>% 
       ggplot(aes(x=pais_c, y=value,  fill=pais_c)) + 
       geom_col(show.legend = FALSE) +
       geom_bar(stat="identity") +
 
       scale_y_continuous(labels = comma) + 
-      facet_wrap(indicator~., scales = "free") + 
+      #facet_wrap(indicator~., scales = "free") + 
       theme_minimal() +
       theme(legend.position = "none") +   
       scale_y_continuous(labels = comma) + 
       scale_fill_discrete_sequential(palette = 'blues 2') +
       ylab('value') +
       xlab('Country') +
-      ggtitle('Monthly resources required to mitigate the effect (USD)') + 
+      ggtitle('Annual resources (USD) required to mitigate the effect
+              (families below the moderate poverty line)') + 
       theme(plot.title = element_text(size = 10, face = "bold"),
             text = element_text(size = 8)) +      
       coord_flip()+ 
@@ -730,7 +916,43 @@ server <- function(input, output) {
            BHS, BRB, BLZ, SUR and VEN was estimated with international poverty lines (US $ 3.1 and US $ 5).")
     ggplotly(p) %>% style(hoverinfo = 'none')
   })
-  
+
+
+  output$deltarecov_pct <- renderPlotly({
+    gdp_data <- gdp_num_country()
+    p<-load_data_shock() %>%
+      filter(shock_weight==round(input$shock,1)) %>%
+      pivot_longer(population:poor_e_national_delta, 'indicator') %>%
+      filter(indicator %in% c('poor_national_recovery')) %>% # 'poor_e_national_recovery'
+      mutate(indicator = case_when(indicator=='poor_national_new_recovery' ~ 'Poverty',
+                                   indicator=='poor_e_national_new_recovery' ~ 'Extreme Poverty')) %>%
+      left_join(gdp_data) %>%
+      mutate(value = (value*12)/gdp)%>%
+      mutate(indicator = as.factor(indicator),
+             pais_c = as.factor(pais_c),
+             pais_c = reorder_within(pais_c, desc(value), indicator))
+    
+    
+    p <- p %>% ggplot(aes(x=pais_c, y=value,  fill=pais_c)) +
+      geom_col(show.legend = FALSE) +
+      geom_bar(stat="identity") +
+      scale_y_continuous(labels=scales::percent) +
+      #facet_wrap(indicator~., scales = "free") +
+      theme_minimal() +
+      theme(legend.position = "none") +
+      scale_fill_discrete_sequential(palette = 'blues 2') +
+      ylab('value') +
+      xlab('Country') +
+      ggtitle('Annual resources (% GDP) required to mitigate the effect 
+              (families below the moderate poverty line)') +
+      theme(plot.title = element_text(size = 10, face = "bold"),
+            text = element_text(size = 8)) +
+      coord_flip()+
+      scale_x_reordered() +
+      labs(caption = "Notes: The poverty is estimated with the official poverty line.
+           BHS, BRB, BLZ, SUR and VEN was estimated with international poverty lines (US $ 3.1 and US $ 5).")
+    ggplotly(p) %>% style(hoverinfo = 'none')
+  })
   
   
   ## Boxplot 
@@ -759,13 +981,15 @@ server <- function(input, output) {
       geom_hline(yintercept=0, linetype="dashed", color = "red") +    
       geom_boxplot() + 
       theme_minimal() + 
-      scale_fill_manual(values = c("Poverty"= "#D3DDDC", "Extreme Poverty"="#fc9272")) +   
+      scale_fill_manual(values = c("Poverty"= "#d3d2d1", "Extreme Poverty"="#fc9272")) +   
       ylab('value') +
       xlab('Country') +
       coord_flip() +
-      ylab("Change (last value - simulated value)") +
-      ggtitle( 'Results of simulating the effect of a shock of 10 to 50 percent on the price of *Grains*') + 
-      labs(caption = 'Notes:
+      ylab("Change (simulated value - latest real value)") +
+      labs(
+      title = 'Results of simulating the effect of a shock of 10 to 50 percent
+      on the price of *Grains*',
+      caption = 'Notes:
       - Negative values are a reduction of poverty in percentage points \n
       - Percentage Point Change in Poverty: Real poverty rate minus poverty rate with price shock ')
   })
@@ -794,12 +1018,13 @@ server <- function(input, output) {
       geom_hline(yintercept=0, linetype="dashed", color = "red") +    
       geom_boxplot() + 
       theme_minimal() + 
-      scale_fill_manual(values = c("Poverty"= "#D3DDDC", "Extreme Poverty"="#fc9272")) +   
+      scale_fill_manual(values = c("Poverty"= "#d3d2d1", "Extreme Poverty"="#fc9272")) +   
       ylab('value') +
       xlab('Country') +
       coord_flip() +
-      ylab("Change (last value - simulated value)") +
-      ggtitle( ggtext::element_markdown('Results of simulating the effect of a shock of 10 to 50 percent on the price of *Grains, Breads and Cereals*')) + 
+      ylab("Change (simulated value - latest real value)") +
+      ggtitle( ggtext::element_markdown('Results of simulating the effect of a shock of
+                                        10 to 50 percent on the price of *Grains, Breads and Cereals*')) + 
       labs(caption = 'Notes:
       - Negative values are a reduction of poverty in percentage points \n
       - Percentage Point Change in Poverty: Real poverty rate minus poverty rate with price shock ')
@@ -830,11 +1055,11 @@ server <- function(input, output) {
       geom_hline(yintercept=0, linetype="dashed", color = "red") +    
       geom_boxplot() + 
       theme_minimal() + 
-      scale_fill_manual(values = c("Poverty"= "#D3DDDC", "Extreme Poverty"="#fc9272")) +   
+      scale_fill_manual(values = c("Poverty"= "#d3d2d1", "Extreme Poverty"="#fc9272")) +   
       ylab('value') +
       xlab('Country') +
       coord_flip() +
-      ylab("Change (last value - simulated value)") +
+      ylab("Change (simulated value - latest real value)") +
       ggtitle( 'Results of simulating the effect of a shock of 10 to 50 percent on the price of *All - Meat*') + 
       labs(caption = 'Notes:
       - Negative values are a reduction of poverty in percentage points \n
@@ -865,11 +1090,11 @@ server <- function(input, output) {
       geom_hline(yintercept=0, linetype="dashed", color = "red") +    
       geom_boxplot() + 
       theme_minimal() + 
-      scale_fill_manual(values = c("Poverty"= "#D3DDDC", "Extreme Poverty"="#fc9272")) +   
+      scale_fill_manual(values = c("Poverty"= "#d3d2d1", "Extreme Poverty"="#fc9272")) +   
       ylab('value') +
       xlab('Country') +
       coord_flip() +
-      ylab("Change (last value - simulated value)") +
+      ylab("Change (simulated value - latest real value)") +
       ggtitle( 'Results of simulating the effect of a shock of 10 to 50 percent on the price of *All*') + 
       labs(caption = 'Notes:
       - Negative values are a reduction of poverty in percentage points \n
@@ -878,4 +1103,6 @@ server <- function(input, output) {
   
 }
 
+###      Obs      ###
+#####################
 shinyApp(ui, server)
