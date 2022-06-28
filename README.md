@@ -11,7 +11,7 @@
 This repository contains the code of the *SCL policy simulator tool.* 
 
 
-- [Shiny app](https://bid-data.shinyapps.io/scl_policy_simulation/)
+- [Shiny app](https://bid-data.shinyapps.io/simulatorpublicpolicy/)
 
 - [Code](https://github.com/EL-BID/analytics_simulation_public_policy_scl)
 
@@ -61,7 +61,7 @@ The distribution of the effect in our baseline scenario by country can be seen i
 
 We invite you to run your own scenarios using the simulation tool developed by the IDB. 
 
-- [Shiny app](https://bid-data.shinyapps.io/scl_policy_simulation/)
+- [Shiny app](https://bid-data.shinyapps.io/simulatorpublicpolicy/)
 
 - [Code](https://github.com/EL-BID/analytics_simulation_public_policy_scl)
 
